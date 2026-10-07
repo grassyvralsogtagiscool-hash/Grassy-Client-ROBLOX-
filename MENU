@@ -1,0 +1,915 @@
+-- turquoiz menu template :D
+-- this version was created on 4 sept 2026
+
+-- set these to what u want
+print("LOADING PLEASE WAIT")
+
+local settings = {}
+settings.Version = "V1.0.0"
+settings.UpdateName = "Update Name"
+settings.Title = "Grassy Client"
+settings.MenuName = "Grassy Client"
+settings.Theme = {
+    BarClr = Color3.fromRGB(60, 120, 60),            -- soft grass green
+    SfClr = Color3.fromRGB(30, 60, 30),              -- darker soil/grass shadow
+    TextClr = Color3.fromRGB(10, 30, 10),            -- deep natural green text
+    ButtonTextClr = Color3.fromRGB(255,255,255),     -- white for contrast
+
+    OffButtonClr = Color3.fromRGB(90, 140, 70),      -- muted leaf green
+    OnButtonClr = Color3.fromRGB(40, 200, 40),       -- bright fresh grass green
+
+    TextBoxClr = Color3.fromRGB(50, 100, 50),        -- medium grass tone
+    TextBoxTextClr = Color3.fromRGB(240,255,240),    -- soft white-green
+    TextBoxPlaceholderTextClr = Color3.fromRGB(170,200,170) -- pale mossy green
+}
+settings.FPSOn = true
+
+-- dont change these
+print("["..settings.MenuName.."] important stuff time")
+
+local Menu = {}
+Menu.Connections = {}
+Menu.ExtraDestroyFunctions = {}
+
+local Players = game.Players
+local LocalPlayer = Players.LocalPlayer
+local CoreGui = game.CoreGui
+local PlayerGui = LocalPlayer.PlayerGui
+local PlayerScripts = LocalPlayer.PlayerScripts
+local StarterGui = game.StarterGui
+local Backpack = LocalPlayer.Backpack
+local StarterPack = game.StarterPack
+local ReplicatedFirst = game.ReplicatedFirst
+local ReplicatedStorage = game.ReplicatedStorage
+local StarterPlayer = game.StarterPlayer
+local StarterPlayerScripts = StarterPlayer.StarterPlayerScripts
+local StarterCharacterScripts = StarterPlayer.StarterCharacterScripts
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Lighting = game.Lighting
+local MarketplaceService = game.MarketplaceService
+local Camera = workspace.CurrentCamera
+local RunService = game.RunService
+local UserInputServer = game.UserInputService
+local Humanoid = Character:FindFirstChild("Humanoid")
+
+table.insert(Menu.Connections,LocalPlayer.CharacterAdded:Connect(function(c)
+    Character = c
+    Humanoid = c:FindFirstChild("Humanoid")
+end))
+
+local function err(e) -- flags error, doesnt stop
+    local sound = Instance.new("Sound", Character)
+    sound.SoundId = "rbxassetid://2865228021"
+    sound:Play()
+    sound.Ended:Connect(function()
+        sound:Destroy()
+    end)
+    task.spawn(function() error("\n\n["..settings.MenuName.."] ERROR\n\n"..e) end)
+end
+
+-- gui stuff
+
+local screengui = CoreGui:FindFirstChild(settings.MenuName)
+
+if screengui then
+    local itd = screengui:FindFirstChild("InvokeToDestroy")
+    if itd then
+        itd:Invoke()
+    end
+    screengui:Destroy()
+end
+
+screengui = Instance.new("ScreenGui",CoreGui)
+screengui.Name = settings.MenuName
+screengui.ResetOnSpawn = false
+screengui.IgnoreGuiInset = true
+
+local bar = Instance.new("Frame",screengui)
+bar.Name = settings.MenuName
+bar.AnchorPoint = Vector2.new(.5,.5)
+bar.Position = UDim2.fromScale(.5,.4)
+bar.BackgroundColor3 = settings.Theme.BarClr
+bar.BorderSizePixel = 0
+bar.Size = UDim2.fromScale(.25,.025)
+Instance.new("UIDragDetector",bar)
+
+local frame = Instance.new("ScrollingFrame",bar)
+frame.Name = "Main Menu"
+frame.Position = UDim2.fromScale(0,1)
+frame.Size = UDim2.fromScale(1,10)
+frame.BackgroundColor3 = settings.Theme.SfClr
+frame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+Instance.new("UIListLayout",frame).SortOrder = Enum.SortOrder.LayoutOrder
+
+local itd = Instance.new("BindableFunction",screengui)
+itd.Name = "InvokeToDestroy"
+
+local template = frame:Clone()
+template.Name = "SectionFrameTemplate"
+
+-- fps
+
+local frames = 0
+local lastTime = os.clock()
+local fps = 0
+local fpslabel = Instance.new("TextLabel",bar)
+fpslabel.TextXAlignment = Enum.TextXAlignment.Left
+fpslabel.Text = settings.MenuName.." "..settings.Version.."  FPS: 0"
+fpslabel.TextColor3 = settings.Theme.TextClr
+fpslabel.TextSize = 20
+fpslabel.BackgroundColor3 = settings.Theme.BarClr
+fpslabel.ClipsDescendants = true
+fpslabel.Size = UDim2.fromScale(.6,1)
+fpslabel.BackgroundTransparency = 1
+
+table.insert(Menu.Connections,RunService.RenderStepped:Connect(function()
+    frames += 1
+
+    local now = os.clock()
+    if now - lastTime >= 1 then
+        fps = frames
+        frames = 0
+        lastTime = now
+        fpslabel.Text = settings.MenuName.." "..settings.Version.."  FPS: "..fps
+    end
+end))
+
+-- more gui stuff
+
+local currentSection = "Main Menu"
+local sections = {}
+
+local function sectionExists(s)
+    if typeof(sections[s]) ~= "table" then return false end
+    return next(sections[s]) ~= nil
+end
+
+local function isButtonActive(b)
+    local s = b:FindFirstChild("State")
+    if not s then err("[isButtonActive] no State BoolValue found") end
+    return  s.Value
+end
+
+local function addBtn(parentSection,text,initialState,toggle,func)
+    if not sectionExists(parentSection) then
+        err("[addBtn] parent section does not exist")
+        return false
+    end
+    local button = Instance.new("TextButton",sections[parentSection].frame)
+    button.Text = text
+    button.BackgroundColor3 = if toggle then if initialState then settings.Theme.OnButtonClr else settings.Theme.OffButtonClr else settings.Theme.OffButtonClr
+    button.Size = UDim2.fromScale(1,.1)
+    button.TextColor3 = settings.Theme.ButtonTextClr
+    button.TextScaled = true
+    local stateValue
+    if toggle then
+        stateValue = Instance.new("BoolValue",button)
+        stateValue.Name = "State"
+    end
+    button.Activated:Connect(function()
+        if toggle then
+            if not stateValue.Parent then err("[addBtn] State BoolValue not found") return false end
+            stateValue.Value = not stateValue.Value
+            button.BackgroundColor3 = if stateValue.Value then settings.Theme.OnButtonClr else settings.Theme.OffButtonClr
+            func(stateValue.Value)
+        else
+            func()
+        end
+    end)
+
+    return button
+end
+
+local sectionlabel = Instance.new("TextLabel",bar)
+sectionlabel.TextXAlignment = Enum.TextXAlignment.Right
+sectionlabel.Text = currentSection
+sectionlabel.Position = UDim2.fromScale(.6,0)
+sectionlabel.Size = UDim2.fromScale(.4,1)
+sectionlabel.TextSize = 20
+sectionlabel.BackgroundTransparency = 1
+
+local function changeSection(s)
+    local old = sections[currentSection]
+    if not old then err("[changeSection] current section is invalid") return false end
+    old = old.frame
+    if not old then err("[changeSection] current section does not have a frame") return false end
+    local new = sections[s]
+    if not new then err("[changeSection] new section is invalid") return false end
+    new = new.frame
+    if not new then err("[changeSection] new section does not have a frame") return false end
+    old.Visible = false
+    new.Visible = true
+    currentSection = s
+    sectionlabel.Text = s
+    return true
+end
+
+local function addBackBtn(parentSection,section)
+    return addBtn(section,"Back to "..parentSection,false,false,function()
+        changeSection(parentSection)
+    end)
+end
+
+local function addSectionBtn(parentSection,section)
+    return addBtn(parentSection,section,false,false,function()
+        changeSection(section)
+    end)
+end
+
+local function getSectionFrameTemplate(section)
+    local f = template:Clone()
+    f.Parent = bar
+    f.Name = section
+    f.Visible = false
+    return f
+end
+
+sections["Main Menu"] = {
+    frame = frame,
+    sectionBtns = {}
+}
+
+local function addSection(parentSection,section)
+    if not sectionExists(parentSection) then err("[addSection] parent section is invalid") return false end
+    sections[section] = {}
+    local f = getSectionFrameTemplate(section)
+    sections[section].frame = f
+    sections[section].sectionBtns = {}
+    table.insert(sections[section].sectionBtns,addSectionBtn(parentSection,section))
+    addBackBtn(parentSection,section)
+    return f
+end
+
+local function addInput(parentSection,initialText,placeholderText,cleartextonfocus,onChanged,onEnter)
+    if not sectionExists(parentSection) then err("[addInput] parent section is invalid") return false end
+    if not sections[parentSection].frame then err("[addinput] parent section has no frame") return false end
+    local textbox = Instance.new("TextBox",sections[parentSection].frame)
+    textbox.Text = initialText
+    textbox.PlaceholderText = placeholderText
+    textbox.ClearTextOnFocus = cleartextonfocus
+    textbox.Size = UDim2.fromScale(1,.1)
+    textbox.BackgroundColor3 = settings.Theme.TextBoxClr
+    textbox.TextColor3 = settings.Theme.TextBoxTextClr
+    textbox.PlaceholderColor3 = settings.Theme.TextBoxPlaceholderTextClr
+    textbox.TextScaled = true
+    if typeof(onChanged) == "function" then
+        textbox:GetPropertyChangedSignal("Text"):Connect(function() onChanged(textbox) end)
+    end
+    if typeof(onEnter) == "function" then
+        textbox.FocusLost:Connect(function(enterPressed)
+            if enterPressed then onEnter(textbox) end
+        end)
+    end
+end
+
+-- add funcs to this table when you create new gui functions
+
+local IFF_FUNCTION_TABLE = {
+    changeSection = changeSection,
+    addBackBtn = addBackBtn,
+    addSectionBtn = addSectionBtn,
+    getSectionFrameTemplate = getSectionFrameTemplate,
+    addSection = addSection,
+    addBtn = addBtn,
+    isButtonActive = isButtonActive,
+    sectionExists = sectionExists,
+    addInput = addInput
+}
+
+-- THE ACTUAL MENU
+print("["..settings.MenuName.."] building gui")
+addSection("Main Menu","Settings")
+addSection("Main Menu","Main")
+addSection("Main Menu","Movement")
+addSection("Main Menu","Trolling")
+addSection("Main Menu","Advantage")
+addSection("Main Menu","Visual")
+addBtn("Main","Disconnect",nil,false,function()
+    LocalPlayer:Kick(settings.MenuName..": Disconnected")
+end)
+addBtn("Main","Destroy Menu",nil,false,function()
+    destroyMenu()
+    screengui:Destroy()
+end)
+
+
+local tlight
+local tlightb = 2
+addBtn("Visual","Full bright",false,true,function(state)
+    if tlight then
+        tlight:Destroy()
+        tlight = nil
+    end
+    if state then
+        tlight = Instance.new("PointLight",Character.HumanoidRootPart)
+        tlight.Brightness = tlightb
+        tlight.Range = math.huge
+    end
+end)
+addInput("Settings","","Full bright Brightness (default 2)",false,function(t)
+    tlightb = tonumber(t.Text or 2) or 2
+    if tlight then tlight.Brightness = tlightb end
+end,nil)
+local tspeed
+local SpeedValue = 50
+
+local tspeed
+local SpeedValue = 50 -- default
+
+local tspeed
+local SpeedValue = 50 -- default
+
+addBtn("Movement","Speedboost",false,true,function(state)
+    if tspeed then
+        tspeed:Disconnect()
+        tspeed = nil
+    end
+
+    if state then
+        tspeed = game:GetService("RunService").Heartbeat:Connect(function()
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChildWhichIsA("Humanoid")
+            if hum then
+                hum.WalkSpeed = SpeedValue
+            end
+        end)
+    else
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildWhichIsA("Humanoid")
+        if hum then
+            hum.WalkSpeed = 16
+        end
+    end
+end)
+
+addInput("Settings","","Speed boost amount (default 50)",false,function(t)
+    local v = tonumber(t.Text)
+    if v then
+        SpeedValue = v
+    end
+    -- no t.Text = "" here
+end,nil)
+
+
+local tjump
+local JumpValue = 200
+
+local tjump
+local JumpValue = 100 -- change this if you want
+
+local tjump
+local JumpValue = 100 -- default
+
+addBtn("Movement","Jumpboost",false,true,function(state)
+    if tjump then
+        tjump:Disconnect()
+        tjump = nil
+    end
+
+    if state then
+        tjump = game:GetService("RunService").Heartbeat:Connect(function()
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChildWhichIsA("Humanoid")
+            if hum then
+                hum.UseJumpPower = true
+                hum.JumpPower = JumpValue
+                hum.JumpHeight = JumpValue / 3.5
+            end
+        end)
+    else
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildWhichIsA("Humanoid")
+        if hum then
+            hum.UseJumpPower = true
+            hum.JumpPower = 50
+            hum.JumpHeight = 7.2
+        end
+    end
+end)
+local tgrav
+local GravityValue = 50 -- change this if you want
+
+addBtn("Movement","low Gravity",false,true,function(state)
+    -- turn off old loop
+    if tgrav then
+        tgrav:Disconnect()
+        tgrav = nil
+    end
+
+    if state then
+        -- turn on new loop
+        tgrav = game:GetService("RunService").Heartbeat:Connect(function()
+            workspace.Gravity = GravityValue
+        end)
+    else
+        -- RESET GRAVITY WHEN TURNED OFF
+        workspace.Gravity = 196.2 -- Roblox default
+    end
+end)
+
+addInput("Settings","","Gravity Value (default 50)",false,function(t)
+    local v = tonumber(t.Text)
+    if v then
+        GravityValue = v
+    end
+    -- no clearing text
+end,nil)
+
+addInput("Settings","","Jump boost amount (default 100)",false,function(t)
+    local v = tonumber(t.Text)
+    if v then
+        JumpValue = v
+    end
+    -- no clearing text
+end,nil)
+local tfly
+local FlySpeed = 50 -- change if you want
+
+addBtn("Movement","Fly",false,true,function(state)
+    if tfly then
+        tfly:Disconnect()
+        tfly = nil
+    end
+
+    if state then
+        tfly = game:GetService("RunService").Heartbeat:Connect(function()
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChildWhichIsA("Humanoid")
+
+            if hrp and hum then
+                hum.PlatformStand = true
+
+                local cam = workspace.CurrentCamera
+                local move = Vector3.new()
+
+                if hum.MoveDirection.Magnitude > 0 then
+                    move = cam.CFrame.LookVector * FlySpeed
+                end
+
+                hrp.Velocity = move
+            end
+        end)
+    else
+        -- RESET FLY WHEN TURNED OFF
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local hum = char and char:FindFirstChildWhichIsA("Humanoid")
+
+        if hum then
+            hum.PlatformStand = false
+        end
+        if hrp then
+            hrp.Velocity = Vector3.zero
+        end
+    end
+end)
+local tinteract
+local InteractDistance = 10 -- default
+
+addBtn("Advantage","Auto-Interact",false,true,function(state)
+    if tinteract then
+        tinteract:Disconnect()
+        tinteract = nil
+    end
+
+    if state then
+        tinteract = game:GetService("RunService").Heartbeat:Connect(function()
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+
+            for _, prompt in ipairs(workspace:GetDescendants()) do
+                if prompt:IsA("ProximityPrompt") then
+                    local parent = prompt.Parent
+                    local part = nil
+
+                    if parent:IsA("BasePart") then
+                        part = parent
+                    elseif parent.Parent and parent.Parent:IsA("BasePart") then
+                        part = parent.Parent
+                    end
+
+                    if part then
+                        local dist = (hrp.Position - part.Position).Magnitude
+
+                        if dist <= InteractDistance then
+                            -- HOLD or PRESS depending on prompt type
+                            pcall(function()
+                                if prompt.HoldDuration > 0 then
+                                    -- HOLD E
+                                    prompt:InputHoldBegin()
+                                else
+                                    -- PRESS E
+                                    prompt:InputHoldBegin()
+                                    task.wait(0.05)
+                                    prompt:InputHoldEnd()
+                                end
+                            end)
+                        else
+                            -- STOP HOLDING if we walk away
+                            pcall(function()
+                                prompt:InputHoldEnd()
+                            end)
+                        end
+                    end
+                end
+            end
+        end)
+    else
+        -- stop holding E on all prompts
+        for _, prompt in ipairs(workspace:GetDescendants()) do
+            if prompt:IsA("ProximityPrompt") then
+                pcall(function()
+                    prompt:InputHoldEnd()
+                end)
+            end
+        end
+    end
+end)
+
+addInput("Settings","","Auto-Interact Distance (default 10)",false,function(t)
+    local v = tonumber(t.Text)
+    if v then
+        InteractDistance = v
+    end
+end,nil)
+
+local tnoclip
+
+addBtn("Movement","Noclip",false,true,function(state)
+    -- turn off old loop
+    if tnoclip then
+        tnoclip:Disconnect()
+        tnoclip = nil
+    end
+
+    if state then
+        -- turn on new loop
+        tnoclip = game:GetService("RunService").Heartbeat:Connect(function()
+            local char = LocalPlayer.Character
+            if char then
+                for _, part in ipairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+    else
+        -- RESET NOCLIP WHEN TURNED OFF
+        local char = LocalPlayer.Character
+        if char then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+        end
+    end
+end)
+
+
+addInput("Settings","","Fly Speed (default 50)",false,function(t)
+    local v = tonumber(t.Text)
+    if v then
+        FlySpeed = v
+    end
+end,nil)
+local tanti
+
+-- how far you must fall before teleporting back up
+local VoidHeight = -420 -- change if you want
+
+addBtn("Advantage","Anti-Void",false,true,function(state)
+    if tanti then
+        tanti:Disconnect()
+        tanti = nil
+    end
+
+    if state then
+        tanti = game:GetService("RunService").Heartbeat:Connect(function()
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+            if hrp then
+                if hrp.Position.Y < VoidHeight then
+                    -- teleport back up
+                    hrp.CFrame = CFrame.new(hrp.Position.X, 50, hrp.Position.Z)
+                end
+            end
+        end)
+    else
+        -- nothing to reset, just turn off the loop
+        -- anti-void doesn't modify anything permanently
+    end
+end)
+
+local trag
+
+addBtn("Advantage","Anti-Ragdoll",false,true,function(state)
+    if trag then
+        trag:Disconnect()
+        trag = nil
+    end
+
+    if state then
+        trag = game:GetService("RunService").Heartbeat:Connect(function()
+            local char = LocalPlayer.Character
+            if char then
+                for _, v in ipairs(char:GetDescendants()) do
+                    if v:IsA("BallSocketConstraint") or v:IsA("HingeConstraint") then
+                        v.Enabled = false
+                    end
+                end
+            end
+        end)
+    else
+        local char = LocalPlayer.Character
+        if char then
+            for _, v in ipairs(char:GetDescendants()) do
+                if v:IsA("BallSocketConstraint") or v:IsA("HingeConstraint") then
+                    v.Enabled = true
+                end
+            end
+        end
+    end
+end)
+local tspider
+local SpiderSpeed = 30
+
+addBtn("Movement","Spider Climb",false,true,function(state)
+    if tspider then
+        tspider:Disconnect()
+        tspider = nil
+    end
+
+    if state then
+        tspider = game:GetService("RunService").Heartbeat:Connect(function()
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChildWhichIsA("Humanoid")
+
+            if hrp and hum then
+                local ray = Ray.new(hrp.Position, hrp.CFrame.LookVector * 2)
+                local hit = workspace:FindPartOnRay(ray, char)
+
+                if hit then
+                    hrp.Velocity = Vector3.new(0, SpiderSpeed, 0)
+                end
+            end
+        end)
+    end
+end)
+
+addInput("Settings","","Spider Climb Speed (default 30)",false,function(t)
+    local v = tonumber(t.Text)
+    if v then
+        SpiderSpeed = v
+    end
+end,nil)
+local tlag = false
+local FreezeTime = 0.5
+
+addBtn("Trolling","Fake Lag",false,true,function(state)
+    tlag = state
+
+    if state then
+        task.spawn(function()
+            while tlag do
+                local char = LocalPlayer.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    -- FREEZE
+                    hrp.Anchored = true
+                end
+
+                task.wait(FreezeTime)
+
+                if not tlag then break end
+
+                if hrp then
+                    -- UNFREEZE
+                    hrp.Anchored = false
+                end
+
+                task.wait(FreezeTime)
+            end
+
+            -- SAFETY UNFREEZE
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.Anchored = false
+            end
+        end)
+    else
+        -- turn off lag
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.Anchored = false
+        end
+    end
+end)
+local tair
+local PlatformSize = Vector3.new(6,1,6)
+
+addBtn("Movement","platforms",false,true,function(state)
+    if tair then
+        tair:Disconnect()
+        tair = nil
+    end
+
+    if state then
+        tair = game:GetService("RunService").Heartbeat:Connect(function()
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChildWhichIsA("Humanoid")
+            if not hrp or not hum then return end
+
+            -- If player is jumping AND not touching ground
+            if hum.FloorMaterial == Enum.Material.Air and hum.Jump then
+                local p = Instance.new("Part")
+                p.Size = PlatformSize
+                p.Anchored = true
+                p.CanCollide = true
+                p.Transparency = 1 -- invisible
+                p.CFrame = CFrame.new(hrp.Position.X, hrp.Position.Y - 3, hrp.Position.Z)
+                p.Parent = workspace
+
+                -- auto cleanup
+                game:GetService("Debris"):AddItem(p, 2)
+            end
+        end)
+    end
+end)
+
+addInput("Settings","","Platform Size (default 6)",false,function(t)
+    local v = tonumber(t.Text)
+    if v then
+        PlatformSize = Vector3.new(v,1,v)
+    end
+end,nil)
+local tinvis
+
+addBtn("Trolling","Invisible",false,true,function(state)
+    if tinvis then
+        tinvis:Disconnect()
+        tinvis = nil
+    end
+
+    if state then
+        tinvis = game:GetService("RunService").Heartbeat:Connect(function()
+            local char = LocalPlayer.Character
+            if not char then return end
+
+            for _, v in ipairs(char:GetDescendants()) do
+                if v:IsA("BasePart") then
+                    v.Transparency = 1
+                elseif v:IsA("Decal") then
+                    v.Transparency = 1
+                elseif v:IsA("Accessory") then
+                    local handle = v:FindFirstChild("Handle")
+                    if handle then handle.Transparency = 1 end
+                end
+            end
+        end)
+    else
+        -- turn visible again
+        local char = LocalPlayer.Character
+        if char then
+            for _, v in ipairs(char:GetDescendants()) do
+                if v:IsA("BasePart") then
+                    v.Transparency = 0
+                elseif v:IsA("Decal") then
+                    v.Transparency = 0
+                elseif v:IsA("Accessory") then
+                    local handle = v:FindFirstChild("Handle")
+                    if handle then handle.Transparency = 0 end
+                end
+            end
+        end
+    end
+end)
+
+addInput("Settings","","Fake lag power (default 0.5)",false,function(t)
+    local v = tonumber(t.Text)
+    if v then
+        FreezeTime = v
+    end
+end,nil)
+
+local Highlights = {}
+local BoxESP_Enabled = false
+
+local function addHighlight(player)
+    if player == LocalPlayer then return end
+    local char = player.Character
+    if not char then return end
+    if Highlights[player] then return end
+
+    local h = Instance.new("Highlight")
+    h.Name = "GrassyBoxESP"
+    h.FillColor = Color3.fromRGB(0, 255, 0)
+    h.OutlineColor = Color3.fromRGB(255, 255, 255)
+    h.FillTransparency = 0.5
+    h.OutlineTransparency = 0
+    h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    h.Parent = char
+
+    Highlights[player] = h
+end
+
+local function removeHighlight(player)
+    if Highlights[player] then
+        Highlights[player]:Destroy()
+        Highlights[player] = nil
+    end
+end
+
+local function enableBoxESP()
+    BoxESP_Enabled = true
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        addHighlight(player)
+        player.CharacterAdded:Connect(function()
+            if BoxESP_Enabled then
+                addHighlight(player)
+            end
+        end)
+    end
+
+    Players.PlayerAdded:Connect(function(player)
+        player.CharacterAdded:Connect(function()
+            if BoxESP_Enabled then
+                addHighlight(player)
+            end
+        end)
+    end)
+end
+
+local function disableBoxESP()
+    BoxESP_Enabled = false
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        removeHighlight(player)
+    end
+end
+
+addBtn("Visual", "players box esp", false, true, function(state)
+    if state then
+        enableBoxESP()
+    else
+        disableBoxESP()
+    end
+end)
+
+function destroyMenu()
+    for _, i in pairs(Menu.Connections) do
+        i:Disconnect()
+    end
+    for _, i in pairs(Menu.ExtraDestroyFunctions) do
+        i()
+    end
+    if tlight then tlight:Destroy() end
+end
+
+local InfiniteHP_Enabled = false
+
+function InfiniteHP(state)
+    InfiniteHP_Enabled = state
+
+    if state then
+        task.spawn(function()
+            while InfiniteHP_Enabled do
+                task.wait(0.05)
+
+                local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                local hum = char:FindFirstChildWhichIsA("Humanoid")
+
+                if hum then
+                    hum.MaxHealth = 1e9
+                    hum.Health = hum.MaxHealth
+                end
+            end
+        end)
+    end
+end
+
+
+
+
+
+print("["..settings.MenuName.."] gui done")
+
+-- dont touch
+print("["..settings.MenuName.."] important stuff time")
+
+itd.OnInvoke = destroyMenu
+local iff = Instance.new("BindableFunction",screengui)
+iff.OnInvoke = function()
+    return IFF_FUNCTION_TABLE
+end
+
+print(settings.MenuName.." "..settings.Version.." loaded successfully")
